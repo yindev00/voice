@@ -5,15 +5,15 @@ import de.maxhenkel.voicechat.api.VoicechatConnection;
 import de.maxhenkel.voicechat.api.VoicechatServerApi;
 import de.maxhenkel.voicechat.api.VolumeCategory;
 import de.maxhenkel.voicechat.api.audiochannel.AudioPlayer;
-import de.maxhenkel.voicechat.api.audiochannel.AudioProvider;
 import de.maxhenkel.voicechat.api.audiochannel.EntityAudioChannel;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 /**
  * Manages Simple Voice Chat audio channels for the "Music" volume category.
@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *       so it follows them around the world — no fixed position needed.</li>
  *   <li>All players share a single {@code volatile} {@code currentFrame} reference
  *       (written by the Lavaplayer poll thread every 20 ms).  Each player's
- *       {@link AudioProvider} reads that same reference, so all listeners are in sync.</li>
+ *       {@link Supplier} reads that same reference, so all listeners are in sync.</li>
  *   <li>The channel is tagged with the "Music" {@link VolumeCategory} so it appears
  *       as a separate row in the SVC "Adjust Volumes" GUI.</li>
  * </ul>
@@ -47,7 +47,7 @@ public class SvcMusicChannel {
 
     /**
      * The latest decoded mono PCM frame (960 shorts, 48 kHz).
-     * Written by the Lavaplayer poll thread; read by every active AudioProvider.
+     * Written by the Lavaplayer poll thread; read by every active audio supplier.
      * {@code null} means silence.
      */
     private final AtomicReference<short[]> currentFrame = new AtomicReference<>(null);
@@ -103,8 +103,8 @@ public class SvcMusicChannel {
                     "[MusicMod] Server not ready yet, skipping SVC channel for {}", playerId);
                 return;
             }
-            ServerPlayerEntity mcPlayer =
-                MusicMod.server.getPlayerManager().getPlayer(playerId);
+            ServerPlayer mcPlayer =
+                MusicMod.server.getPlayerList().getPlayer(playerId);
             if (mcPlayer == null) {
                 MusicMod.LOGGER.warn(
                     "[MusicMod] MC player not found for SVC UUID {}", playerId);
@@ -124,19 +124,19 @@ public class SvcMusicChannel {
                 return;
             }
 
-            // Tag channel with the "Music" volume category — this is what makes it
+            // Tag channel with the "Music" volume category ID — this is what makes it
             // appear as its own row in the SVC "Adjust Volumes" GUI.
             if (musicCategory != null) {
-                channel.setCategory(musicCategory);
+                channel.setCategory(musicCategory.getId());
             }
 
-            // AudioProvider: return the latest shared frame or null (= silence) if
+            // Supplier<short[]>: return the latest shared frame or null (= silence) if
             // nothing is playing.  Lambda is safe — AtomicReference.get() never throws.
-            AudioProvider provider = () -> currentFrame.get();
+            Supplier<short[]> audioSupplier = currentFrame::get;
 
             // SVC handles Opus encoding internally via createEncoder()
             AudioPlayer ap = serverApi.createAudioPlayer(
-                channel, serverApi.createEncoder(), provider);
+                channel, serverApi.createEncoder(), audioSupplier);
             ap.startPlaying();
 
             playerHandles.put(playerId, ap);
@@ -149,8 +149,7 @@ public class SvcMusicChannel {
         }
     }
 
-    public void onPlayerDisconnect(VoicechatConnection connection) {
-        UUID playerId = connection.getPlayer().getUuid();
+    public void onPlayerDisconnect(UUID playerId) {
         AudioPlayer ap = playerHandles.remove(playerId);
         if (ap != null) {
             try { ap.stopPlaying(); } catch (Exception ignored) {}
@@ -163,14 +162,14 @@ public class SvcMusicChannel {
     // -----------------------------------------------------------------------
 
     /**
-     * Update the shared frame reference.  Every active {@link AudioProvider} will
+     * Update the shared frame reference.  Every active audio supplier will
      * return this frame on the next SVC callback.
      *
      * @param mono   960-sample mono 48 kHz 16-bit PCM
      * @param player the /play issuer, for error reporting
      * @return {@code true} on success
      */
-    public boolean pushFrame(short[] mono, ServerPlayerEntity player) {
+    public boolean pushFrame(short[] mono, ServerPlayer player) {
         // It's valid for no one to be on SVC yet — just return true silently.
         if (playerHandles.isEmpty()) return true;
 
@@ -193,7 +192,7 @@ public class SvcMusicChannel {
      * pipeline in 20 ms chunks — completely bypassing Lavaplayer.
      * Use this to confirm SVC audio delivery works before testing YouTube playback.
      */
-    public void playTestTone(ServerPlayerEntity triggerPlayer) {
+    public void playTestTone(ServerPlayer triggerPlayer) {
         if (serverApi == null) {
             MusicMod.sendError(triggerPlayer,
                 "/musictest: SVC not ready — is Simple Voice Chat installed?");
@@ -235,9 +234,8 @@ public class SvcMusicChannel {
 
             final int finalSent = sent;
             MusicMod.LOGGER.info("[MusicMod] /musictest complete — {} frames sent.", finalSent);
-            triggerPlayer.sendMessage(
-                Text.literal("§a[MusicMod] Test tone complete — " + finalSent + " frames sent to SVC."),
-                false
+            triggerPlayer.sendSystemMessage(
+                Component.literal("§a[MusicMod] Test tone complete — " + finalSent + " frames sent to SVC.")
             );
 
         }, "MusicMod-TestTone");

@@ -10,8 +10,8 @@ import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.playback.AudioFrame;
 import dev.lavalink.youtube.YoutubeAudioSourceManager;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -50,8 +50,8 @@ public class LavalinkManager {
     private final ScheduledExecutorService scheduler;
 
     private ScheduledFuture<?> pollTask;
-    private ServerPlayerEntity commandPlayer;   // player who triggered /play
-    private boolean            debugMode = false;
+    private ServerPlayer commandPlayer;   // player who triggered /play
+    private boolean      debugMode = false;
 
     private final AtomicLong totalFramesSent = new AtomicLong(0);
 
@@ -67,7 +67,7 @@ public class LavalinkManager {
         playerManager.getConfiguration()
                      .setOutputFormat(StandardAudioDataFormats.COMMON_PCM_S16_LE);
 
-        // YouTube source provided by dev.lavalink.youtube:youtube-source
+        // YouTube source provided by dev.lavalink.youtube:common
         playerManager.registerSourceManager(new YoutubeAudioSourceManager());
 
         MusicMod.LOGGER.info("[MusicMod] Lavaplayer initialized — output: PCM S16 LE, 48 kHz stereo.");
@@ -94,7 +94,7 @@ public class LavalinkManager {
      * @param query  a YouTube URL, or a plain-text search query
      * @param player the player who typed /play (receives status + error messages)
      */
-    public void loadAndPlay(String query, ServerPlayerEntity player) {
+    public void loadAndPlay(String query, ServerPlayer player) {
         this.commandPlayer = player;
 
         // Bare text → ytsearch:, URL → use as-is
@@ -112,13 +112,13 @@ public class LavalinkManager {
                 MusicMod.LOGGER.info("[MusicMod] Track loaded: {} ({}ms)", title, duration);
 
                 // §a▶ Now Playing: §f<Actual Track Title>  — from real metadata
-                player.sendMessage(Text.literal("§a▶ Now Playing: §f" + title), false);
+                player.sendSystemMessage(Component.literal("§a▶ Now Playing: §f" + title));
 
                 if (debugMode) {
-                    player.sendMessage(Text.literal(
+                    player.sendSystemMessage(Component.literal(
                         "§e[Debug] Track loaded: " + title +
                         " | Duration: " + duration + "ms | URL: " + uri
-                    ), false);
+                    ));
                 }
 
                 audioPlayer.playTrack(track);
@@ -184,19 +184,19 @@ public class LavalinkManager {
             byte[] stereoBytes = frame.getData();
 
             if (debugMode && commandPlayer != null) {
-                commandPlayer.sendMessage(Text.literal(
+                commandPlayer.sendSystemMessage(Component.literal(
                     "§e[Debug] PCM frame received: " + stereoBytes.length + " bytes"
-                ), false);
+                ));
             }
 
             // Downmix stereo 48 kHz 16-bit → mono 48 kHz 16-bit (960 shorts)
             short[] mono = PcmUtils.stereoToMono(stereoBytes);
 
             if (debugMode && commandPlayer != null) {
-                commandPlayer.sendMessage(Text.literal(
+                commandPlayer.sendSystemMessage(Component.literal(
                     "§e[Debug] Downmix: " + stereoBytes.length +
                     " stereo bytes → " + (mono.length * 2) + " mono bytes"
-                ), false);
+                ));
             }
 
             // Push the mono frame to all SVC-connected players
@@ -206,9 +206,8 @@ public class LavalinkManager {
                 MusicMod.LOGGER.error(
                     "[MusicMod] SVC rejected audio frame (pushFrame returned false).");
                 if (commandPlayer != null) {
-                    commandPlayer.sendMessage(
-                        Text.literal("§cMusic Error: SVC rejected audio frame. See server log."),
-                        false
+                    commandPlayer.sendSystemMessage(
+                        Component.literal("§cMusic Error: SVC rejected audio frame. See server log.")
                     );
                 }
                 return;
@@ -226,9 +225,9 @@ public class LavalinkManager {
             }
 
             if (debugMode && commandPlayer != null) {
-                commandPlayer.sendMessage(Text.literal(
+                commandPlayer.sendSystemMessage(Component.literal(
                     "§e[Debug] Frame sent to SVC: " + (mono.length * 2) + " bytes"
-                ), false);
+                ));
             }
 
         } catch (Exception e) {

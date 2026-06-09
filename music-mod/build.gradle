@@ -46,7 +46,7 @@ dependencies {
         include implementation("dev.arbjerg:lavaplayer:${project.lavaplayer_version}")
 
         // YouTube audio source for Lavaplayer 2.x
-        include implementation("dev.lavalink.youtube:youtube-source:${project.youtube_source_version}")
+        include implementation("dev.lavalink.youtube:common:${project.youtube_source_version}")
 }
 
 processResources {

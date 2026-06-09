@@ -4,10 +4,10 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.minecraft.commands.Commands;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
+import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,22 +37,22 @@ public class MusicMod implements ModInitializer {
 
             // /play <query or URL>   — also handles /play debug
             dispatcher.register(
-                CommandManager.literal("play")
-                    .then(CommandManager.argument("query", StringArgumentType.greedyString())
+                Commands.literal("play")
+                    .then(Commands.argument("query", StringArgumentType.greedyString())
                         .executes(ctx -> {
                             String query = StringArgumentType.getString(ctx, "query");
-                            ServerPlayerEntity player = ctx.getSource().getPlayer();
+                            ServerPlayer player = ctx.getSource().getPlayer();
                             if (player == null) return 0;
 
                             if (query.equalsIgnoreCase("debug")) {
                                 boolean next = !LavalinkManager.getInstance().isDebugMode();
                                 LavalinkManager.getInstance().setDebugMode(next);
                                 String onOff = next ? "§aON" : "§cOFF";
-                                player.sendMessage(Text.literal("§e[MusicMod] Debug mode: " + onOff), false);
+                                player.sendSystemMessage(Component.literal("§e[MusicMod] Debug mode: " + onOff));
                                 return 1;
                             }
 
-                            player.sendMessage(Text.literal("§7[MusicMod] Loading track..."), false);
+                            player.sendSystemMessage(Component.literal("§7[MusicMod] Loading track..."));
                             LavalinkManager.getInstance().loadAndPlay(query, player);
                             return 1;
                         }))
@@ -60,13 +60,12 @@ public class MusicMod implements ModInitializer {
 
             // /musictest — 440 Hz sine wave directly into SVC, bypasses Lavaplayer
             dispatcher.register(
-                CommandManager.literal("musictest")
+                Commands.literal("musictest")
                     .executes(ctx -> {
-                        ServerPlayerEntity player = ctx.getSource().getPlayer();
+                        ServerPlayer player = ctx.getSource().getPlayer();
                         if (player == null) return 0;
-                        player.sendMessage(
-                            Text.literal("§7[MusicMod] Sending 440 Hz sine-wave test tone via SVC..."),
-                            false
+                        player.sendSystemMessage(
+                            Component.literal("§7[MusicMod] Sending 440 Hz sine-wave test tone via SVC...")
                         );
                         SvcMusicChannel.getInstance().playTestTone(player);
                         return 1;
@@ -82,11 +81,11 @@ public class MusicMod implements ModInitializer {
     // Never silently swallows. Includes top 3 stack-trace lines in chat.
     // -----------------------------------------------------------------------
 
-    public static void sendError(ServerPlayerEntity player, String message) {
+    public static void sendError(ServerPlayer player, String message) {
         sendError(player, message, null);
     }
 
-    public static void sendError(ServerPlayerEntity player, String message, Throwable t) {
+    public static void sendError(ServerPlayer player, String message, Throwable t) {
         LOGGER.error("[MusicMod] {}", message, t);
 
         if (player == null || !player.isAlive()) return;
@@ -102,6 +101,6 @@ public class MusicMod implements ModInitializer {
                 sb.append("\n§c  at ").append(st[i]);
             }
         }
-        player.sendMessage(Text.literal(sb.toString()), false);
+        player.sendSystemMessage(Component.literal(sb.toString()));
     }
 }

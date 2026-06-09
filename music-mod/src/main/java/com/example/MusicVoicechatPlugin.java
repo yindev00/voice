@@ -1,11 +1,14 @@
 package com.example;
 
 import de.maxhenkel.voicechat.api.VoicechatApi;
-import de.maxhenkel.voicechat.api.VoicechatConnection;
 import de.maxhenkel.voicechat.api.VoicechatPlugin;
 import de.maxhenkel.voicechat.api.VoicechatServerApi;
 import de.maxhenkel.voicechat.api.VolumeCategory;
-import de.maxhenkel.voicechat.api.VolumeCategoryManager;
+import de.maxhenkel.voicechat.api.events.EventRegistration;
+import de.maxhenkel.voicechat.api.events.PlayerConnectedEvent;
+import de.maxhenkel.voicechat.api.events.PlayerDisconnectedEvent;
+import de.maxhenkel.voicechat.api.events.VoicechatServerStartedEvent;
+import de.maxhenkel.voicechat.api.events.VoicechatServerStoppedEvent;
 
 /**
  * Simple Voice Chat plugin entry point.
@@ -38,58 +41,50 @@ public class MusicVoicechatPlugin implements VoicechatPlugin {
     }
 
     /**
-     * Register the "Music" volume category.
-     * It will appear in the SVC "Adjust Volumes" screen, letting players control
-     * music volume independently of voice and other sounds.
+     * Register all SVC lifecycle events.
+     * Volume category is created and registered on server start so the server API is available.
      */
     @Override
-    public void registerVolumeCategories(VolumeCategoryManager manager) {
-        VolumeCategory musicCategory = manager.createBuilder()
-            .setId("music")
-            .setName("Music")
-            .setDescription("Volume for music streamed via /play")
-            .build();
+    public void registerEvents(EventRegistration registration) {
 
-        manager.registerVolumeCategory(musicCategory);
-        SvcMusicChannel.getInstance().setMusicCategory(musicCategory);
+        registration.registerEvent(VoicechatServerStartedEvent.class, event -> {
+            VoicechatServerApi api = event.getVoicechat();
+            SvcMusicChannel.getInstance().onServerStarted(api);
 
-        MusicMod.LOGGER.info("[MusicMod] 'Music' volume category registered in SVC.");
-    }
+            // Register the "Music" volume category now that the server API is live.
+            VolumeCategory musicCategory = api.volumeCategoryBuilder()
+                .setId("music")
+                .setName("Music")
+                .setDescription("Volume for music streamed via /play")
+                .build();
+            api.registerVolumeCategory(musicCategory);
+            SvcMusicChannel.getInstance().setMusicCategory(musicCategory);
 
-    // -----------------------------------------------------------------------
-    // Lifecycle hooks — SVC calls these directly on the plugin instance
-    // -----------------------------------------------------------------------
+            MusicMod.LOGGER.info("[MusicMod] SVC server started + 'Music' category registered.");
 
-    @Override
-    public void onServerStarted(VoicechatServerApi api) {
-        SvcMusicChannel.getInstance().onServerStarted(api);
-        MusicMod.LOGGER.info("[MusicMod] SVC server started.");
+            if (LavalinkManager.getInstance().isDebugMode()) {
+                MusicMod.LOGGER.info(
+                    "[MusicMod] [Debug] Lavalink node status: EMBEDDED (Lavaplayer 2.x)");
+            }
+        });
 
-        if (LavalinkManager.getInstance().isDebugMode()) {
-            MusicMod.LOGGER.info(
-                "[MusicMod] [Debug] Lavalink node status: EMBEDDED (Lavaplayer 2.x)");
-        }
-    }
+        registration.registerEvent(VoicechatServerStoppedEvent.class, event -> {
+            SvcMusicChannel.getInstance().onServerStopped();
+            LavalinkManager.getInstance().stopPollLoop();
+        });
 
-    @Override
-    public void onServerStopped() {
-        SvcMusicChannel.getInstance().onServerStopped();
-        LavalinkManager.getInstance().stopPollLoop();
-    }
+        registration.registerEvent(PlayerConnectedEvent.class, event -> {
+            SvcMusicChannel.getInstance().onPlayerConnect(event.getConnection());
 
-    @Override
-    public void onPlayerConnected(VoicechatConnection connection) {
-        SvcMusicChannel.getInstance().onPlayerConnect(connection);
+            if (LavalinkManager.getInstance().isDebugMode()) {
+                MusicMod.LOGGER.info(
+                    "[MusicMod] [Debug] Player {} connected to SVC — channel created.",
+                    event.getConnection().getPlayer().getUuid());
+            }
+        });
 
-        if (LavalinkManager.getInstance().isDebugMode()) {
-            MusicMod.LOGGER.info(
-                "[MusicMod] [Debug] Player {} connected to SVC — channel created.",
-                connection.getPlayer().getUuid());
-        }
-    }
-
-    @Override
-    public void onPlayerDisconnected(VoicechatConnection connection) {
-        SvcMusicChannel.getInstance().onPlayerDisconnect(connection);
+        registration.registerEvent(PlayerDisconnectedEvent.class, event -> {
+            SvcMusicChannel.getInstance().onPlayerDisconnect(event.getPlayerUuid());
+        });
     }
 }
