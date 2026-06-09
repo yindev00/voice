@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "jMHAhwqYxdoXMUXukb5cw"
+uri = "file://music-mod.zip"
+type = "unspecified"
+title = "music-mod — Complete Fabric Mod Project"
