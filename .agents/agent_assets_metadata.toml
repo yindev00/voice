@@ -6,3 +6,9 @@ id = "jMHAhwqYxdoXMUXukb5cw"
 uri = "file://music-mod.zip"
 type = "unspecified"
 title = "music-mod — Reviewed & Corrected Build"
+
+[[outputs]]
+id = "pGxr5b5mU5ys9hJpmaTvU"
+uri = "file://musicmod-1.0.0.jar.zip"
+type = "unspecified"
+title = "musicmod-1.0.0.jar — Download & drop in mods folder"

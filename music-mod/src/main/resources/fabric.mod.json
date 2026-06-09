@@ -1,41 +1,41 @@
 {
-	"schemaVersion": 1,
-	"id": "musicmod",
-	"version": "${version}",
-	"name": "Music Mod",
-	"description": "Stream YouTube audio into Minecraft via Simple Voice Chat with a dedicated Music volume category.",
-	"authors": [
-		"You"
-	],
-	"contact": {},
-	"license": "MIT",
-	"icon": "assets/musicmod/icon.png",
-	"environment": "*",
-	"entrypoints": {
-		"main": [
-			"com.example.MusicMod"
-		],
-		"client": [
-			"com.example.client.MusicModClient"
-		],
-		"voicechat": [
-			"com.example.MusicVoicechatPlugin"
-		]
-	},
-	"mixins": [
-		"musicmod.mixins.json",
-		{
-			"config": "musicmod.client.mixins.json",
-			"environment": "client"
-		}
-	],
-	"depends": {
-		"fabricloader": ">=0.19.3",
-		"minecraft": "~1.21.11",
-		"java": ">=21",
-		"fabric-api": "*"
-	},
-	"suggests": {
-		"voicechat": ">=2.6.0"
-	}
+        "schemaVersion": 1,
+        "id": "musicmod",
+        "version": "${version}",
+        "name": "Music Mod",
+        "description": "Stream YouTube audio into Minecraft via Simple Voice Chat with a dedicated Music volume category.",
+        "authors": [
+                "You"
+        ],
+        "contact": {},
+        "license": "MIT",
+        "icon": "assets/musicmod/icon.png",
+        "environment": "*",
+        "entrypoints": {
+                "main": [
+                        "com.example.MusicMod"
+                ],
+                "client": [
+                        "com.example.client.MusicModClient"
+                ],
+                "voicechat": [
+                        "com.example.MusicVoicechatPlugin"
+                ]
+        },
+        "mixins": [
+                "musicmod.mixins.json",
+                {
+                        "config": "musicmod.client.mixins.json",
+                        "environment": "client"
+                }
+        ],
+        "depends": {
+                "fabricloader": ">=0.19.2",
+                "minecraft": "~1.21.11",
+                "java": ">=21",
+                "fabric-api": "*"
+        },
+        "suggests": {
+                "voicechat": ">=2.6.0"
+        }
 }

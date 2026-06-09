@@ -10,6 +10,8 @@ import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.playback.AudioFrame;
 import dev.lavalink.youtube.YoutubeAudioSourceManager;
+import dev.lavalink.youtube.clients.TvHtml5Simply;
+import dev.lavalink.youtube.clients.WebEmbedded;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -67,8 +69,15 @@ public class LavalinkManager {
         playerManager.getConfiguration()
                      .setOutputFormat(StandardAudioDataFormats.COMMON_PCM_S16_LE);
 
-        // YouTube source provided by dev.lavalink.youtube:common
-        playerManager.registerSourceManager(new YoutubeAudioSourceManager());
+        // YouTube source — use TvHtml5Embedded (TV client) + WebEmbedded as fallback.
+        // These clients do NOT require OAuth, avoiding the "blocked" errors from the
+        // default Web client that YouTube now gates behind sign-in.
+        YoutubeAudioSourceManager ytSource = new YoutubeAudioSourceManager(
+            true,                   // allowSearch ("ytsearch:" prefix)
+            new TvHtml5Simply(),    // primary: TV simplified client, no OAuth
+            new WebEmbedded()       // fallback: embedded player API, no OAuth
+        );
+        playerManager.registerSourceManager(ytSource);
 
         MusicMod.LOGGER.info("[MusicMod] Lavaplayer initialized — output: PCM S16 LE, 48 kHz stereo.");
 
