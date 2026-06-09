@@ -42,8 +42,10 @@ dependencies {
         // Simple Voice Chat API — compile-only; the real SVC mod provides it at runtime
         modCompileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
 
-        // Lavaplayer core — bundled into our jar via 'include'
+        // Lavaplayer core + its required lava-common util library — both bundled into our jar.
+        // lava-common must be listed explicitly: 'include' does NOT pull transitive deps.
         include implementation("dev.arbjerg:lavaplayer:${project.lavaplayer_version}")
+        include implementation("dev.arbjerg:lava-common:${project.lavaplayer_version}")
 
         // YouTube audio source for Lavaplayer 2.x
         include implementation("dev.lavalink.youtube:common:${project.youtube_source_version}")

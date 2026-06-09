@@ -43,6 +43,14 @@ public class LavalinkManager {
         return INSTANCE;
     }
 
+    /**
+     * Stops the poll loop only if LavalinkManager has already been initialised.
+     * Safe to call from SVC / server lifecycle events before {@code /play} is run.
+     */
+    public static void stopPollLoopIfInitialised() {
+        if (INSTANCE != null) INSTANCE.stopPollLoop();
+    }
+
     // -----------------------------------------------------------------------
     // Fields
     // -----------------------------------------------------------------------

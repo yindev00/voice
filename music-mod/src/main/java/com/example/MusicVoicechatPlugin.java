@@ -14,17 +14,21 @@ import de.maxhenkel.voicechat.api.events.VoicechatServerStoppedEvent;
  * Simple Voice Chat plugin entry point.
  *
  * <p>Registration: this class is listed under the {@code "voicechat"} entrypoint key in
- * {@code fabric.mod.json}.  SVC discovers and instantiates it automatically on load.
- * No {@code @VoicechatPlugin} annotation is needed — the Fabric entrypoint system is
- * the canonical registration mechanism for the Fabric edition of SVC.</p>
+ * {@code fabric.mod.json}.  SVC discovers and instantiates it automatically on load.</p>
  *
  * <p>Responsibilities:
  * <ul>
  *   <li>Register the {@code "music"} {@link VolumeCategory} so it appears as its own
- *       row in the SVC "Adjust Volumes" GUI — separate from "Other" and "Own voice".</li>
+ *       row in the SVC "Adjust Volumes" GUI.</li>
  *   <li>Forward all SVC lifecycle events to {@link SvcMusicChannel}.</li>
  * </ul>
  * </p>
+ *
+ * <p><b>IMPORTANT:</b> Do NOT call {@link LavalinkManager#getInstance()} from any SVC
+ * event handler.  SVC events fire before the server is fully up, and constructing
+ * {@link LavalinkManager} (which builds {@code DefaultAudioPlayerManager}) at that point
+ * can throw {@code ClassNotFoundException} for {@code lava-common} classes.
+ * LavalinkManager is initialised lazily on the first {@code /play} command instead.</p>
  */
 public class MusicVoicechatPlugin implements VoicechatPlugin {
 
@@ -33,17 +37,12 @@ public class MusicVoicechatPlugin implements VoicechatPlugin {
         return MusicMod.MOD_ID;
     }
 
-    /** Called once when the SVC API object is available (before server start). */
     @Override
     public void initialize(VoicechatApi api) {
         SvcMusicChannel.getInstance().onVoicechatInit(api);
         MusicMod.LOGGER.info("[MusicMod] VoicechatPlugin.initialize() — SVC API ready.");
     }
 
-    /**
-     * Register all SVC lifecycle events.
-     * Volume category is created and registered on server start so the server API is available.
-     */
     @Override
     public void registerEvents(EventRegistration registration) {
 
@@ -51,7 +50,6 @@ public class MusicVoicechatPlugin implements VoicechatPlugin {
             VoicechatServerApi api = event.getVoicechat();
             SvcMusicChannel.getInstance().onServerStarted(api);
 
-            // Register the "Music" volume category now that the server API is live.
             VolumeCategory musicCategory = api.volumeCategoryBuilder()
                 .setId("music")
                 .setName("Music")
@@ -61,26 +59,20 @@ public class MusicVoicechatPlugin implements VoicechatPlugin {
             SvcMusicChannel.getInstance().setMusicCategory(musicCategory);
 
             MusicMod.LOGGER.info("[MusicMod] SVC server started + 'Music' category registered.");
-
-            if (LavalinkManager.getInstance().isDebugMode()) {
-                MusicMod.LOGGER.info(
-                    "[MusicMod] [Debug] Lavalink node status: EMBEDDED (Lavaplayer 2.x)");
-            }
+            // Do NOT touch LavalinkManager here — it is not initialised yet.
         });
 
         registration.registerEvent(VoicechatServerStoppedEvent.class, event -> {
             SvcMusicChannel.getInstance().onServerStopped();
-            LavalinkManager.getInstance().stopPollLoop();
+            // Only stop the poll loop if LavalinkManager was ever initialised.
+            LavalinkManager.stopPollLoopIfInitialised();
         });
 
         registration.registerEvent(PlayerConnectedEvent.class, event -> {
             SvcMusicChannel.getInstance().onPlayerConnect(event.getConnection());
-
-            if (LavalinkManager.getInstance().isDebugMode()) {
-                MusicMod.LOGGER.info(
-                    "[MusicMod] [Debug] Player {} connected to SVC — channel created.",
-                    event.getConnection().getPlayer().getUuid());
-            }
+            MusicMod.LOGGER.info("[MusicMod] Player {} connected to SVC.",
+                event.getConnection().getPlayer().getUuid());
+            // Do NOT touch LavalinkManager here — it may not be initialised yet.
         });
 
         registration.registerEvent(PlayerDisconnectedEvent.class, event -> {

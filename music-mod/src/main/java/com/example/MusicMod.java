@@ -29,7 +29,7 @@ public class MusicMod implements ModInitializer {
             LOGGER.info("[MusicMod] MinecraftServer reference captured.");
         });
         ServerLifecycleEvents.SERVER_STOPPED.register(s -> {
-            LavalinkManager.getInstance().stopPollLoop();
+            LavalinkManager.stopPollLoopIfInitialised();
             server = null;
         });
 
