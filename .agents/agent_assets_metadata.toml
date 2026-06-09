@@ -12,3 +12,9 @@ id = "pGxr5b5mU5ys9hJpmaTvU"
 uri = "file://musicmod-1.0.0.jar.zip"
 type = "unspecified"
 title = "musicmod-1.0.0.jar — Download & drop in mods folder"
+
+[[outputs]]
+id = "AlDhhkxAvEqYVnpeXyyVR"
+uri = "file://musicmod-1.0.0.zip"
+type = "unspecified"
+title = "musicmod-1.0.0.jar — Mixin crash fixed, download this"

@@ -1,14 +1,5 @@
 package com.example.client.mixin;
 
-import net.minecraft.client.gui.screens.TitleScreen;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-
-@Mixin(TitleScreen.class)
-public class ExampleClientMixin {
-        @Inject(at = @At("HEAD"), method = "init()V")
-        private void init(CallbackInfo info) {
-        }
-}
+// Template stub — no injections needed.
+// Mixin list in musicmod.client.mixins.json is empty; this file is kept only
+// so the package exists for the mixin framework scanner.
